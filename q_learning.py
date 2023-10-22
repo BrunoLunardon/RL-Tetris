@@ -1,8 +1,11 @@
 import cv2
 import torch
-import random
 import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib import style
 from tetris import Tetris
+
+style.use('ggplot')
 
 BOARD_WIDTH = 10 
 BOARD_HEIGHT = 20
@@ -18,8 +21,14 @@ out = cv2.VideoWriter("output.mp4", cv2.VideoWriter_fourcc(*"MJPG"), 300,
 # Some important q-learning constants
 LEARNING_RATE = 0.3
 DISCOUNT = 0.9
-MAX_EPISODES = 10000
+MAX_EPISODES = 100000
 RENDER_INTERVAL = 1000
+
+# Stats definitions
+STATS_EVERY = 1000
+
+total_rewards = []
+aggr_ep_rewards = {'ep': [], 'avg': [], 'max': [], 'min': []}
 
 # epsilon is the exploration parameter; the bigger his value, the bigger the chance for the environment to make an exploratory action
 epsilon = 0.5
@@ -34,7 +43,9 @@ q_table = np.random.uniform(low = -2, high = 0, size = OS_SHAPE) # Populating th
 # TODO: this is a pretty inneficient table, since it have more than 100 million entries. Maybe there is some way to optimize it? 
 
 # Main training loop
-for episode in range(MAX_EPISODES):
+for episode in range(MAX_EPISODES+1):
+    episode_reward = 0
+
     if not episode%100: print(episode)
 
     if episode % RENDER_INTERVAL == 0: # Intermediate episodes where the environment will show current results
@@ -59,12 +70,18 @@ for episode in range(MAX_EPISODES):
     
     done = False
     while not done:
-        index = np.argmax(q_values)     # The index from the observation with the best q value 
-        action = next_actions[index]    # is the same from the action that leads to that observation 
+        # Verifies the probability of making an exploratory step
+        if np.random.random() > epsilon:
+            index = np.argmax(q_values)   
+        else:
+            index = np.random.randint(0, len(q_values))
         
+        action = next_actions[index]    # is the same from the action that leads to that observation 
         # Applies the best action
         score, done = env.step(action, render = show_render, video = out)
-        reward = score - 1
+        reward = score - 2
+
+        episode_reward += reward
 
         if env.score > 10000: # If we reach this score, we're satisfied with this episode
             done = True
@@ -95,47 +112,28 @@ for episode in range(MAX_EPISODES):
             # TODO: Problem, we don't have a well-defined reward :/
 
             q_table[current_q_loc[0]][current_q_loc[1]][current_q_loc[2]][current_q_loc[3]] = new_q # Insert the updated value into the table
+    
+    # update the epsilon parameter
+    if END_EPSILON_DECAYING >= episode >= START_EPSILON_DECAYING:
+        epsilon -= epsilon_decay_value
 
-    env.reset() # Resets after each episode
+    total_rewards.append(episode_reward)
+    if not episode % STATS_EVERY:
+        average_reward = sum(total_rewards[-STATS_EVERY:])/STATS_EVERY
+        aggr_ep_rewards['ep'].append(episode)
+        aggr_ep_rewards['avg'].append(average_reward)
+        aggr_ep_rewards['max'].append(max(total_rewards[-STATS_EVERY:]))
+        aggr_ep_rewards['min'].append(min(total_rewards[-STATS_EVERY:]))
+        print(f'Episode: {episode:>5d}, average reward: {average_reward:>4.1f}, current epsilon: {epsilon:>1.2f}')
+        
+        np.save(f"qtables/{episode}-qtable.npy", q_table)
+
+    env.reset() # Resets environment after each episode
 
 cv2.destroyAllWindows()
 
-#####################################################
-
-# for episode in range(EPISODES):
-#     if episode % SHOW_EVERY == 0:
-#         render = True
-#         print(episode)
-#     else:
-#         render = False
-
-#     done = False
-#     trunc = False
-#     while not done or trunc:
-#         if np.random.random() > epsilon:
-#             action = np.argmax(q_table[discrete_state])
-#         else:
-#             action = np.random.randint(0, env.action_space.n)
-        
-#         new_state, reward, done, trunc, _ = env.step(action)
-        
-#         new_discrete_state = get_discrete_state(new_state)
-        
-#         if render: env.render()
-#         if not done:
-#             max_future_q = np.max(q_table[new_discrete_state])
-#             current_q = q_table[discrete_state + (action, )]
-
-#             new_q = (1 - LEARNING_RATE) * current_q + LEARNING_RATE * (reward + DISCOUNT * max_future_q)
-#             q_table[discrete_state + (action,)] = new_q
-
-#         elif new_state[0] >= env.goal_position:
-#             q_table[discrete_state + (action, )] = 0
-
-#         discrete_state = new_discrete_state
-#         # print(new_state)
-
-#     if END_EPSILON_DECAYING >= episode >= START_EPSILON_DECAYING:
-#         epsilon -= epsilon_decay_value
-
-# env.close()
+plt.plot(aggr_ep_rewards['ep'], aggr_ep_rewards['avg'], label="average rewards")
+plt.plot(aggr_ep_rewards['ep'], aggr_ep_rewards['max'], label="max rewards")
+plt.plot(aggr_ep_rewards['ep'], aggr_ep_rewards['min'], label="min rewards")
+plt.legend(loc=2)
+plt.show()
