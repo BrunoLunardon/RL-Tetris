@@ -16,8 +16,8 @@ out = cv2.VideoWriter("output.mp4", cv2.VideoWriter_fourcc(*"MJPG"), 300,
                           (int(1.5*10*30), 20*30))
 
 # Some important q-learning constants
-LEARNING_RATE = 0.1
-DISCOUNT = 0.95
+LEARNING_RATE = 0.3
+DISCOUNT = 0.9
 MAX_EPISODES = 10000
 RENDER_INTERVAL = 1000
 
@@ -28,7 +28,7 @@ END_EPSILON_DECAYING = MAX_EPISODES // 2
 epsilon_decay_value = epsilon/(END_EPSILON_DECAYING - START_EPSILON_DECAYING)
 
 # Shape of the Observation Space
-OS_SHAPE = (5, (BOARD_WIDTH-1)*(BOARD_HEIGHT-1), (BOARD_WIDTH//2)*BOARD_HEIGHT, (BOARD_WIDTH)*(BOARD_HEIGHT), 7)
+OS_SHAPE = (5, (BOARD_WIDTH-1)*(BOARD_HEIGHT-1), (BOARD_WIDTH//2)*BOARD_HEIGHT, (BOARD_WIDTH)*(BOARD_HEIGHT))
 
 q_table = np.random.uniform(low = -2, high = 0, size = OS_SHAPE) # Populating the initial q-table with random values
 # TODO: this is a pretty inneficient table, since it have more than 100 million entries. Maybe there is some way to optimize it? 
@@ -51,11 +51,11 @@ for episode in range(MAX_EPISODES):
         next_states = next_states.cuda()
 
     # Adding the piece id to the state info
-    piece_id = torch.tensor([[env.ind]]*len(next_actions))
-    next_states = torch.cat((next_states, piece_id), 1)
+    # piece_id = torch.tensor([[env.ind]]*len(next_actions))
+    # next_states = torch.cat((next_states, piece_id), 1)
 
     # Search for the action that returns the best q value
-    q_values = [q_table[state[0]][state[1]][state[2]][state[3]][state[4]] for state in next_states.int()]
+    q_values = [q_table[state[0]][state[1]][state[2]][state[3]] for state in next_states.int()]
     
     done = False
     while not done:
@@ -83,18 +83,18 @@ for episode in range(MAX_EPISODES):
                 next_states = next_states.cuda()
 
             # Adding the piece id to the new state info
-            piece_id = torch.tensor([[env.ind]]*len(next_actions))
-            next_states = torch.cat((next_states, piece_id), 1)
+            # piece_id = torch.tensor([[env.ind]]*len(next_actions))
+            # next_states = torch.cat((next_states, piece_id), 1)
 
             # Search for the best q value obtainable in the next step
-            q_values = [q_table[state[0]][state[1]][state[2]][state[3]][state[4]] for state in next_states.int()]
+            q_values = [q_table[state[0]][state[1]][state[2]][state[3]] for state in next_states.int()]
             max_future_q = np.max(q_values)
 
             # Finally calculate the new value for the current state
-            new_q = (1 - LEARNING_RATE) * q_table[current_q_loc[0]][current_q_loc[1]][current_q_loc[2]][current_q_loc[3]][current_q_loc[4]] + LEARNING_RATE * (reward + DISCOUNT * max_future_q)
+            new_q = (1 - LEARNING_RATE) * q_table[current_q_loc[0]][current_q_loc[1]][current_q_loc[2]][current_q_loc[3]] + LEARNING_RATE * (reward + DISCOUNT * max_future_q)
             # TODO: Problem, we don't have a well-defined reward :/
 
-            q_table[current_q_loc[0]][current_q_loc[1]][current_q_loc[2]][current_q_loc[3]][current_q_loc[4]] = new_q # Insert the updated value into the table
+            q_table[current_q_loc[0]][current_q_loc[1]][current_q_loc[2]][current_q_loc[3]] = new_q # Insert the updated value into the table
 
     env.reset() # Resets after each episode
 
