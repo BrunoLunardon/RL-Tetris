@@ -84,7 +84,8 @@ class QL_Tetris:
                 action = next_actions[index] 
 
                 # Applies the best action
-                reward, done = self.env.step(action, render = show_render, video = self.out)
+                score, done = self.env.step(action, render = show_render, video = self.out)
+                reward = score - 2
                 episode_reward += reward
 
                 # save the current state's location
@@ -131,10 +132,10 @@ class QL_Tetris:
                 print(f"Relatory: Max Reward: {self.aggr_ep_rewards['max'][-1]}, Average Reward: {average_reward}, Min Reward: {self.aggr_ep_rewards['min'][-1]}, Current Epsilon: {epsilon}")
                 
             if save_q_table == "stats" and not episode % self.stats_interval:
-                np.save(f"qtables/{episode}-qtable.npy", self.q_table)
+                np.save(f"./qtables/{episode}-qtable.npy", self.q_table)
 
             elif save_q_table == "final" and episode == max_episodes:
-                np.save(f"qtables/{episode}-qtable.npy", self.q_table)
+                np.save(f"./qtables/{episode}-qtable.npy", self.q_table)
 
             self.env.reset() # Resets environment after each episode
 
