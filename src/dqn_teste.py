@@ -23,12 +23,12 @@ def test():
         model = torch.load(f"{SAVED_PATH}/tetris_0.1_0.99_3000", map_location=lambda storage, loc: storage)
     model.eval()
     env = Tetris(width=WIDTH, height=HEIGHT, block_size=BLOCK_SIZE)
+    output = cv2.VideoWriter("test.mp4", cv2.VideoWriter_fourcc(*"mp4v"), 60,
+                                   (int(1.5*10*30), 20*30))
     env.reset()
 
     if torch.cuda.is_available():
         model.cuda()
-
-    out = cv2.VideoWriter(OUTPUT, cv2.VideoWriter_fourcc(*"MJPG"), FPS, (int(1.5*WIDTH*BLOCK_SIZE), HEIGHT*BLOCK_SIZE))
     
     # Test model
     while True:
@@ -40,11 +40,10 @@ def test():
         predictions = model(next_states)[:, 0]
         index = torch.argmax(predictions).item()
         action = next_actions[index]
-        _, done = env.step(action, render=True, video=out)
+        _, done = env.step(action, render=True, video=output)
 
         if done:
             print(f"Score: {env.score} | Cleared lines: {env.cleared_lines} | Tetrominoes: {env.tetrominoes}")
-            cv2.destroyAllWindows()
             break
 
 if __name__ == "__main__":
