@@ -18,14 +18,14 @@ class QL_Tetris:
 
         # Environment video recording
         self.render_interval = render_interval
-        self.out = cv2.VideoWriter("output.mp4", cv2.VideoWriter_fourcc(*"MJPG"), 300,
+        self.out = cv2.VideoWriter("output.mp4", cv2.VideoWriter_fourcc(*"mp4v"), 300,
                                 (int(1.5*10*30), 20*30))
 
         # Stats definitions
         self.stats_interval = stats
 
         # Shape of the Observation Space
-        self.observation_space_dim = (5, (BOARD_WIDTH-1)*(BOARD_HEIGHT-1), (BOARD_WIDTH//2)*BOARD_HEIGHT, (BOARD_WIDTH)*(BOARD_HEIGHT))
+        self.observation_space_dim = (5, (BOARD_WIDTH-1)*(BOARD_HEIGHT-1)+10, (BOARD_WIDTH//2)*BOARD_HEIGHT+10, (BOARD_WIDTH)*(BOARD_HEIGHT)+10) # I added 10 to cover extremely rare 
         self.reset_q_table(self.observation_space_dim)
 
     def reset_q_table(self, shape):
@@ -44,17 +44,20 @@ class QL_Tetris:
         if savefile: plt.savefig(f"./graphs/q_learn/{savefile}")
         else: plt.show()
 
+        plt.clf()
+
     def clean_rewards(self):
         self.total_rewards = []
         self.aggr_ep_rewards = {'ep': [], 'avg': [], 'max': [], 'min': []}
 
     def train(self, learn_rate, discount, max_episodes, target = np.inf, save_q_table = "final", plot = True):
         self.clean_rewards()
+        self.env.reset()
 
         # epsilon is the exploration parameter; the bigger his value, the bigger the chance for the environment to make an exploratory action
         epsilon = 0.5
         start_epsilon_decay = 1
-        end_epsilon_decay = max_episodes
+        end_epsilon_decay = max_episodes//2
         epsilon_decay_value = epsilon/(end_epsilon_decay - start_epsilon_decay)
         
         # Main training loop
@@ -62,7 +65,7 @@ class QL_Tetris:
             episode_reward = 0
 
             # Intermediate episodes where the environment will show current results
-            if episode % self.render_interval == 0: show_render = True
+            if self.render_interval > 0 and episode % self.render_interval == 0: show_render = True
             else: show_render = False
 
             # First we take the possible states
@@ -144,25 +147,72 @@ class QL_Tetris:
 
     def parameter_analysis(self, epochs):
         original_render = self.render_interval
-        self.render_interval = epochs + 1 # Deactivate render
+        self.render_interval = 0 # Deactivate render
+        original_output = self.out
+        self.out = None # Deactivate video
 
-        for alpha in range(0.1, 1, 0.1):
-            for beta in range(0.1, 1, 0.1):
+        for alpha in range(1, 10):
+            for beta in range(1, 10):
+                if alpha == 1: continue
                 self.reset_q_table(self.observation_space_dim)
                 
-                self.train(learn_rate=alpha,
-                            discount=beta,
+                self.train(learn_rate=alpha/10,
+                            discount=beta/10,
                             max_episodes=epochs,
                             plot=False)
-                
-                self.plot_rewards(f"analysis_al{int(alpha*10)}_be{int(beta*10)}")
+                self.plot_rewards(f"analysis_al{int(alpha)}_be{int(beta)}")
                 
         self.render_interval = original_render # Reactivate render
-                
-            
+        self.out = original_output # Reactivate video
 
+    def play(self):
+        output = cv2.VideoWriter("test.mp4", cv2.VideoWriter_fourcc(*"mp4v"), 60,
+                                   (int(1.5*10*30), 20*30))
+        self.env.reset()
+
+        # Take the possible states
+        next_steps = self.env.get_next_states()
+        next_actions, next_states = zip(*next_steps.items())
+        next_states = torch.stack(next_states)
+
+        if torch.cuda.is_available(): # CUDA optimization, if available 
+            next_states = next_states.cuda()
+
+        # Search for the action that returns the best q value
+        q_values = [self.q_table[state[0]][state[1]][state[2]][state[3]] for state in next_states.int()]
+        
+        done = False
+        while not done: # Inner loop, refering to a single game
+            index = np.argmax(q_values) # Policy Step
+            action = next_actions[index] 
+
+            # Applies the best action
+            score, done = self.env.step(action, render = True, video=output)
+
+            if self.env.score > 50000: # If we reach this score, we're satisfied with the game
+                done = True
+                print("Victory achieved!!!")
+
+            else: 
+                next_steps = self.env.get_next_states()
+                next_actions, next_states = zip(*next_steps.items())
+                next_states = torch.stack(next_states)
+
+                if torch.cuda.is_available(): # CUDA optimization, if available 
+                    next_states = next_states.cuda()
+
+                # Search for the best q value obtainable in the next step
+                q_values = [self.q_table[state[0]][state[1]][state[2]][state[3]] for state in next_states.int()]    
+        
+        self.env.reset()
+        
 if __name__ == "__main__":
     q_model = QL_Tetris()
-    q_model.train(learn_rate=0.3,
-                discount=0.9,
-                max_episodes=20000)
+
+    # q_model.train(learn_rate=0.3,
+    #             discount=0.9,
+    #             max_episodes=10000)
+    
+    # q_model.parameter_analysis(10000)
+    q_model.load_q_table("first_100k.npy")
+    q_model.play()
