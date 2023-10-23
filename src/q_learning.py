@@ -11,7 +11,7 @@ BOARD_WIDTH = 10
 BOARD_HEIGHT = 20
 
 class QL_Tetris:
-    def __init__(self, render_interval = 1000, stats = 1000):
+    def __init__(self, render_interval = 1000, stats = 100):
         # Tetris environment
         self.env = Tetris(width=BOARD_WIDTH, height=BOARD_HEIGHT, block_size=30)
         self.env.reset()
@@ -25,10 +25,8 @@ class QL_Tetris:
         self.stats_interval = stats
 
         # Shape of the Observation Space
-        OS_SHAPE = (5, (BOARD_WIDTH-1)*(BOARD_HEIGHT-1), (BOARD_WIDTH//2)*BOARD_HEIGHT, (BOARD_WIDTH)*(BOARD_HEIGHT))
-        self.reset_q_table(OS_SHAPE)
-
-        # TODO: this is a pretty inneficient table, since it have more than 100 million entries. Maybe there is some way to optimize it? 
+        self.observation_space_dim = (5, (BOARD_WIDTH-1)*(BOARD_HEIGHT-1), (BOARD_WIDTH//2)*BOARD_HEIGHT, (BOARD_WIDTH)*(BOARD_HEIGHT))
+        self.reset_q_table(self.observation_space_dim)
 
     def reset_q_table(self, shape):
         self.q_table = np.random.uniform(low = -2, high = 0, size = shape) # Populating the initial q-table with random values
@@ -36,13 +34,15 @@ class QL_Tetris:
     def load_q_table(self, filename):
         self.q_table = np.load(f"./qtables/{filename}")
 
-    def plot_rewards(self):
+    def plot_rewards(self, savefile = None):
         plt.plot(self.aggr_ep_rewards['ep'], self.aggr_ep_rewards['avg'], label="average rewards")
         plt.plot(self.aggr_ep_rewards['ep'], self.aggr_ep_rewards['max'], label="max rewards")
         plt.plot(self.aggr_ep_rewards['ep'], self.aggr_ep_rewards['min'], label="min rewards")
         plt.legend(loc=2)
         plt.grid(True)
-        plt.show()
+
+        if savefile: plt.savefig(f"./graphs/q_learn/{savefile}")
+        else: plt.show()
 
     def clean_rewards(self):
         self.total_rewards = []
@@ -52,7 +52,7 @@ class QL_Tetris:
         self.clean_rewards()
 
         # epsilon is the exploration parameter; the bigger his value, the bigger the chance for the environment to make an exploratory action
-        epsilon = 1
+        epsilon = 0.5
         start_epsilon_decay = 1
         end_epsilon_decay = max_episodes
         epsilon_decay_value = epsilon/(end_epsilon_decay - start_epsilon_decay)
@@ -142,8 +142,24 @@ class QL_Tetris:
         cv2.destroyAllWindows()
         if plot: self.plot_rewards()
 
-    # def parameter_analysis(self):
-    #     for discount in range(0.1, 1, 0.1)
+    def parameter_analysis(self, epochs):
+        original_render = self.render_interval
+        self.render_interval = epochs + 1 # Deactivate render
+
+        for alpha in range(0.1, 1, 0.1):
+            for beta in range(0.1, 1, 0.1):
+                self.reset_q_table(self.observation_space_dim)
+                
+                self.train(learn_rate=alpha,
+                            discount=beta,
+                            max_episodes=epochs,
+                            plot=False)
+                
+                self.plot_rewards(f"analysis_al{int(alpha*10)}_be{int(beta*10)}")
+                
+        self.render_interval = original_render # Reactivate render
+                
+            
 
 if __name__ == "__main__":
     q_model = QL_Tetris()
