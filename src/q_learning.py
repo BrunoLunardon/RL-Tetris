@@ -50,7 +50,7 @@ class QL_Tetris:
         self.total_rewards = []
         self.aggr_ep_rewards = {'ep': [], 'avg': [], 'max': [], 'min': []}
 
-    def train(self, learn_rate, discount, max_episodes, target = np.inf, save_q_table = "final", plot = True):
+    def train(self, learn_rate, discount, max_episodes, target = np.inf, save_q_table = 10000, plot = True):
         self.clean_rewards()
         self.env.reset()
 
@@ -134,10 +134,7 @@ class QL_Tetris:
                 self.aggr_ep_rewards['min'].append(min(self.total_rewards[-self.stats_interval:]))
                 print(f"Relatory: Max Reward: {self.aggr_ep_rewards['max'][-1]}, Average Reward: {average_reward}, Min Reward: {self.aggr_ep_rewards['min'][-1]}, Current Epsilon: {epsilon}")
                 
-            if save_q_table == "stats" and not episode % self.stats_interval:
-                np.save(f"./qtables/{episode}-qtable.npy", self.q_table)
-
-            elif save_q_table == "final" and episode == max_episodes:
+            if save_q_table > 0 and not episode % save_q_table:
                 np.save(f"./qtables/{episode}-qtable.npy", self.q_table)
 
             self.env.reset() # Resets environment after each episode
@@ -153,7 +150,6 @@ class QL_Tetris:
 
         for alpha in range(1, 10):
             for beta in range(1, 10):
-                if alpha == 1: continue
                 self.reset_q_table(self.observation_space_dim)
                 
                 self.train(learn_rate=alpha/10,
@@ -207,12 +203,15 @@ class QL_Tetris:
         self.env.reset()
         
 if __name__ == "__main__":
-    q_model = QL_Tetris()
+    q_model = QL_Tetris(render_interval=100000)
 
-    # q_model.train(learn_rate=0.3,
-    #             discount=0.9,
-    #             max_episodes=10000)
+    q_model.train(learn_rate=0.4,
+                discount=0.95,
+                max_episodes=1000000,
+                target=10000,
+                save_q_table=100000)
     
     # q_model.parameter_analysis(10000)
-    q_model.load_q_table("first_100k.npy")
-    q_model.play()
+
+    # q_model.load_q_table("first_100k.npy")
+    # q_model.play()
