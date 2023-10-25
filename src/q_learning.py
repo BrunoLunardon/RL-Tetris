@@ -50,7 +50,7 @@ class QL_Tetris:
         self.total_rewards = []
         self.aggr_ep_rewards = {'ep': [], 'avg': [], 'max': [], 'min': []}
 
-    def train(self, learn_rate, discount, max_episodes, target = np.inf, save_q_table = 10000, plot = True):
+    def train(self, learn_rate, discount, max_episodes, target = np.inf, save_q_table = 10000, plot = True, verbose = 1):
         self.clean_rewards()
         self.env.reset()
 
@@ -124,7 +124,7 @@ class QL_Tetris:
                 epsilon -= epsilon_decay_value
 
             self.total_rewards.append(episode_reward)
-            print(f"Episode {episode}/{max_episodes} reward: {episode_reward}")
+            if verbose > 1: print(f"Episode {episode}/{max_episodes} reward: {episode_reward}")
             
             if not episode % self.stats_interval:
                 average_reward = sum(self.total_rewards[-self.stats_interval:])/self.stats_interval
@@ -132,7 +132,7 @@ class QL_Tetris:
                 self.aggr_ep_rewards['avg'].append(average_reward)
                 self.aggr_ep_rewards['max'].append(max(self.total_rewards[-self.stats_interval:]))
                 self.aggr_ep_rewards['min'].append(min(self.total_rewards[-self.stats_interval:]))
-                print(f"Relatory: Max Reward: {self.aggr_ep_rewards['max'][-1]}, Average Reward: {average_reward}, Min Reward: {self.aggr_ep_rewards['min'][-1]}, Current Epsilon: {epsilon}")
+                if (verbose > 0 and not episode % 1000) or verbose > 1: print(f"Relatory: Max Reward: {self.aggr_ep_rewards['max'][-1]}, Average Reward: {average_reward}, Min Reward: {self.aggr_ep_rewards['min'][-1]}, Current Epsilon: {epsilon}")
                 
             if save_q_table > 0 and not episode % save_q_table:
                 np.save(f"./qtables/{episode}-qtable.npy", self.q_table)
@@ -205,13 +205,13 @@ class QL_Tetris:
 if __name__ == "__main__":
     q_model = QL_Tetris(render_interval=100000)
 
-    q_model.train(learn_rate=0.4,
-                discount=0.95,
-                max_episodes=1000000,
-                target=10000,
-                save_q_table=100000)
+    # q_model.train(learn_rate=0.4,
+    #             discount=0.95,
+    #             max_episodes=1000000,
+    #             target=10000,
+    #             save_q_table=100000)
     
     # q_model.parameter_analysis(10000)
 
-    # q_model.load_q_table("first_100k.npy")
-    # q_model.play()
+    q_model.load_q_table("600000-qtable.npy")
+    q_model.play()
