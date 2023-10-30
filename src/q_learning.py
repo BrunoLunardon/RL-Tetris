@@ -11,13 +11,12 @@ BOARD_WIDTH = 10
 BOARD_HEIGHT = 20
 
 class QL_Tetris:
-    def __init__(self, render_interval = 1000, stats = 100):
+    def __init__(self, stats = 100):
         # Tetris environment
         self.env = Tetris(width=BOARD_WIDTH, height=BOARD_HEIGHT, block_size=30)
         self.env.reset()
 
         # Environment video recording
-        self.render_interval = render_interval
         self.out = cv2.VideoWriter("output.mp4", cv2.VideoWriter_fourcc(*"mp4v"), 300,
                                 (int(1.5*10*30), 20*30))
 
@@ -50,7 +49,7 @@ class QL_Tetris:
         self.total_rewards = []
         self.aggr_ep_rewards = {'ep': [], 'avg': [], 'max': [], 'min': []}
 
-    def train(self, learn_rate, discount, max_episodes, target = np.inf, save_q_table = 10000, plot = True, verbose = 1):
+    def train(self, learn_rate, discount, max_episodes, target = np.inf, save_q_table = 10000, plot = True, verbose = 1,  render_interval = 1000):
         self.clean_rewards()
         self.env.reset()
 
@@ -65,7 +64,7 @@ class QL_Tetris:
             episode_reward = 0
 
             # Intermediate episodes where the environment will show current results
-            if self.render_interval > 0 and episode % self.render_interval == 0: show_render = True
+            if render_interval > 0 and episode % render_interval == 0: show_render = True
             else: show_render = False
 
             # First we take the possible states
@@ -122,6 +121,7 @@ class QL_Tetris:
             # update the epsilon parameter
             if end_epsilon_decay >= episode >= start_epsilon_decay:
                 epsilon -= epsilon_decay_value
+            else: epsilon = 0.10
 
             self.total_rewards.append(episode_reward)
             if verbose > 1: print(f"Episode {episode}/{max_episodes} reward: {episode_reward}")
@@ -132,10 +132,11 @@ class QL_Tetris:
                 self.aggr_ep_rewards['avg'].append(average_reward)
                 self.aggr_ep_rewards['max'].append(max(self.total_rewards[-self.stats_interval:]))
                 self.aggr_ep_rewards['min'].append(min(self.total_rewards[-self.stats_interval:]))
-                if (verbose > 0 and not episode % 1000) or verbose > 1: print(f"Relatory: Max Reward: {self.aggr_ep_rewards['max'][-1]}, Average Reward: {average_reward}, Min Reward: {self.aggr_ep_rewards['min'][-1]}, Current Epsilon: {epsilon}")
+                if (verbose > 0 and not episode % 1000) or verbose > 1: print(f"Episode {episode} relatory: Max Reward: {self.aggr_ep_rewards['max'][-1]}, Average Reward: {average_reward}, Min Reward: {self.aggr_ep_rewards['min'][-1]}, Current Epsilon: {epsilon}")
                 
             if save_q_table > 0 and not episode % save_q_table:
                 np.save(f"./qtables/{episode}-qtable.npy", self.q_table)
+                self.plot_rewards(f"{episode}_graph")
 
             self.env.reset() # Resets environment after each episode
 
@@ -143,8 +144,6 @@ class QL_Tetris:
         if plot: self.plot_rewards()
 
     def parameter_analysis(self, epochs):
-        original_render = self.render_interval
-        self.render_interval = 0 # Deactivate render
         original_output = self.out
         self.out = None # Deactivate video
 
@@ -155,10 +154,10 @@ class QL_Tetris:
                 self.train(learn_rate=alpha/10,
                             discount=beta/10,
                             max_episodes=epochs,
-                            plot=False)
+                            plot=False,
+                            render_interval=0) # Deactivate render
                 self.plot_rewards(f"analysis_al{int(alpha)}_be{int(beta)}")
                 
-        self.render_interval = original_render # Reactivate render
         self.out = original_output # Reactivate video
 
     def play(self):
@@ -203,15 +202,15 @@ class QL_Tetris:
         self.env.reset()
         
 if __name__ == "__main__":
-    q_model = QL_Tetris(render_interval=100000)
+    q_model = QL_Tetris()
+
+    q_model.load_q_table("first_1M.npy")
+    q_model.play()
 
     # q_model.train(learn_rate=0.4,
     #             discount=0.95,
     #             max_episodes=1000000,
     #             target=10000,
-    #             save_q_table=100000)
+    #             save_q_table=50000)
     
     # q_model.parameter_analysis(10000)
-
-    q_model.load_q_table("600000-qtable.npy")
-    q_model.play()
