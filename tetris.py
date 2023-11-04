@@ -312,45 +312,72 @@ class Tetris:
         cv2.imshow("Deep Q-Learning Tetris", img)
         cv2.waitKey(1)
 
-import random
-
-def get_args():
-    parser = argparse.ArgumentParser(
-        """Implementation of Deep Q Network to play Tetris""")
-
-    parser.add_argument("--width", type=int, default=10, help="The common width for all images")
-    parser.add_argument("--height", type=int, default=20, help="The common height for all images")
-    parser.add_argument("--block_size", type=int, default=30, help="Size of a block")
-    parser.add_argument("--fps", type=int, default=1, help="frames per second")
-    parser.add_argument("--saved_path", type=str, default="trained_models")
-    parser.add_argument("--output", type=str, default="output.mp4")
-
-    args = parser.parse_args()
-    print(args)
-    return args
+    def draw_board(self,board):
+        img = [self.piece_colors[p] for row in board for p in row]
+        img = np.array(img).reshape((self.height, self.width, 3)).astype(np.uint8)
+        img = img[..., ::-1]
+        img = Image.fromarray(img, "RGB")
+        img = img.resize((self.width * self.block_size, self.height * self.block_size), 0)
+        img = np.array(img)
+        img[[i * self.block_size for i in range(self.height)], :, :] = 0
+        img[:, [i * self.block_size for i in range(self.width)], :] = 0
+        img = np.concatenate((img, self.extra_board), axis=1)
+        cv2.imshow("Deep Q-Learning Tetris", img)
+        cv2.waitKey(5000)
+        cv2.destroyAllWindows()
 
 
+# ev=Tetris(height=20, width=10, block_size=30)
+# ev.reset()
+# ev.board[19][0]=1
 
-def test_random(opt):
-    env = Tetris(width=opt.width, height=opt.height, block_size=opt.block_size)
-    env.reset()
+# ev.draw_board(ev.board)
 
-    out = cv2.VideoWriter(opt.output, cv2.VideoWriter_fourcc(*"MJPG"), opt.fps,
-                          (int(1.5*opt.width*opt.block_size), opt.height*opt.block_size))
 
-    while True:
-        next_steps = env.get_next_states()
-        next_actions, _ = zip(*next_steps.items())
 
-        # Escolhendo uma ação aleatória
-        action = random.choice(next_actions)
 
-        _, done = env.step(action, render=True, video=out)
 
-        if done:
-            out.release()
-            break
 
-if __name__ == "__main__":
-    opt = get_args()
-    test_random(opt)
+
+# import random
+
+# def get_args():
+#     parser = argparse.ArgumentParser(
+#         """Implementation of Deep Q Network to play Tetris""")
+
+#     parser.add_argument("--width", type=int, default=10, help="The common width for all images")
+#     parser.add_argument("--height", type=int, default=20, help="The common height for all images")
+#     parser.add_argument("--block_size", type=int, default=30, help="Size of a block")
+#     parser.add_argument("--fps", type=int, default=1, help="frames per second")
+#     parser.add_argument("--saved_path", type=str, default="trained_models")
+#     parser.add_argument("--output", type=str, default="output.mp4")
+
+#     args = parser.parse_args()
+#     print(args)
+#     return args
+
+
+
+# def test_random(opt):
+#     env = Tetris(width=opt.width, height=opt.height, block_size=opt.block_size)
+#     env.reset()
+
+#     out = cv2.VideoWriter(opt.output, cv2.VideoWriter_fourcc(*"MJPG"), opt.fps,
+#                           (int(1.5*opt.width*opt.block_size), opt.height*opt.block_size))
+
+#     while True:
+#         next_steps = env.get_next_states()
+#         next_actions, _ = zip(*next_steps.items())
+
+#         # Escolhendo uma ação aleatória
+#         action = random.choice(next_actions)
+
+#         _, done = env.step(action, render=True, video=out)
+
+#         if done:
+#             out.release()
+#             break
+
+# if __name__ == "__main__":
+#     opt = get_args()
+#     test_random(opt)
