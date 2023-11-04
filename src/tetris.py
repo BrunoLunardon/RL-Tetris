@@ -87,13 +87,6 @@ class Tetris:
 
         return torch.FloatTensor([lines_cleared, holes, bumpiness, height])
 
-    def get_state_properties_v2(self, board):
-        lines_cleared, board = self.check_cleared_rows(board)
-        holes = self.get_holes_v2(board)
-        bumpiness, height = self.get_bumpiness_and_height(board)
-
-        return torch.FloatTensor([lines_cleared, holes, bumpiness, height])
-
 
     def get_holes(self, board):
         num_holes = 0
@@ -102,13 +95,6 @@ class Tetris:
             while row < self.height and col[row] == 0:
                 row += 1
             num_holes += len([x for x in col[row + 1:] if x == 0])
-        return num_holes
-
-    def get_holes_v2(self, board):
-        num_holes = 0
-        for row in board:
-            if any(row):  # checks if there's any non-zero entry in the row
-                num_holes += row.count(0)  # counts zeros in the row
         return num_holes
 
 
@@ -123,30 +109,6 @@ class Tetris:
         diffs = np.abs(currs - nexts)
         total_bumpiness = np.sum(diffs)
         return total_bumpiness, total_height
-
-    def get_next_states_v2(self):
-        states = {}
-        piece_id = self.ind
-        curr_piece = [row[:] for row in self.piece]
-        if piece_id == 0:  # O piece
-            num_rotations = 1
-        elif piece_id == 2 or piece_id == 3 or piece_id == 4:
-            num_rotations = 2
-        else:
-            num_rotations = 4
-
-        for i in range(num_rotations):
-            valid_xs = self.width - len(curr_piece[0])
-            for x in range(valid_xs + 1):
-                piece = [row[:] for row in curr_piece]
-                pos = {"x": x, "y": 0}
-                while not self.check_collision(piece, pos):
-                    pos["y"] += 1
-                self.truncate(piece, pos)
-                board = self.store(piece, pos)
-                states[(x, i)] = self.get_state_properties_v2(board)
-            curr_piece = self.rotate(curr_piece)
-        return states
 
     def get_next_states(self):
         states = {}
@@ -312,72 +274,3 @@ class Tetris:
         cv2.imshow("Deep Q-Learning Tetris", img)
         cv2.waitKey(1)
 
-    def draw_board(self,board):
-        img = [self.piece_colors[p] for row in board for p in row]
-        img = np.array(img).reshape((self.height, self.width, 3)).astype(np.uint8)
-        img = img[..., ::-1]
-        img = Image.fromarray(img, "RGB")
-        img = img.resize((self.width * self.block_size, self.height * self.block_size), 0)
-        img = np.array(img)
-        img[[i * self.block_size for i in range(self.height)], :, :] = 0
-        img[:, [i * self.block_size for i in range(self.width)], :] = 0
-        img = np.concatenate((img, self.extra_board), axis=1)
-        cv2.imshow("Deep Q-Learning Tetris", img)
-        cv2.waitKey(5000)
-        cv2.destroyAllWindows()
-
-
-# ev=Tetris(height=20, width=10, block_size=30)
-# ev.reset()
-# ev.board[19][0]=1
-
-# ev.draw_board(ev.board)
-
-
-
-
-
-
-
-# import random
-
-# def get_args():
-#     parser = argparse.ArgumentParser(
-#         """Implementation of Deep Q Network to play Tetris""")
-
-#     parser.add_argument("--width", type=int, default=10, help="The common width for all images")
-#     parser.add_argument("--height", type=int, default=20, help="The common height for all images")
-#     parser.add_argument("--block_size", type=int, default=30, help="Size of a block")
-#     parser.add_argument("--fps", type=int, default=1, help="frames per second")
-#     parser.add_argument("--saved_path", type=str, default="trained_models")
-#     parser.add_argument("--output", type=str, default="output.mp4")
-
-#     args = parser.parse_args()
-#     print(args)
-#     return args
-
-
-
-# def test_random(opt):
-#     env = Tetris(width=opt.width, height=opt.height, block_size=opt.block_size)
-#     env.reset()
-
-#     out = cv2.VideoWriter(opt.output, cv2.VideoWriter_fourcc(*"MJPG"), opt.fps,
-#                           (int(1.5*opt.width*opt.block_size), opt.height*opt.block_size))
-
-#     while True:
-#         next_steps = env.get_next_states()
-#         next_actions, _ = zip(*next_steps.items())
-
-#         # Escolhendo uma ação aleatória
-#         action = random.choice(next_actions)
-
-#         _, done = env.step(action, render=True, video=out)
-
-#         if done:
-#             out.release()
-#             break
-
-# if __name__ == "__main__":
-#     opt = get_args()
-#     test_random(opt)
