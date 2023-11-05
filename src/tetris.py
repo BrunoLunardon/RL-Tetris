@@ -7,6 +7,7 @@ import cv2
 from matplotlib import style
 import torch
 import random
+import argparse
 
 style.use("ggplot")
 
@@ -86,6 +87,7 @@ class Tetris:
 
         return torch.FloatTensor([lines_cleared, holes, bumpiness, height])
 
+
     def get_holes(self, board):
         num_holes = 0
         for col in zip(*board):
@@ -94,6 +96,7 @@ class Tetris:
                 row += 1
             num_holes += len([x for x in col[row + 1:] if x == 0])
         return num_holes
+
 
     def get_bumpiness_and_height(self, board):
         board = np.array(board)
@@ -270,3 +273,4 @@ class Tetris:
 
         cv2.imshow("Deep Q-Learning Tetris", img)
         cv2.waitKey(1)
+
