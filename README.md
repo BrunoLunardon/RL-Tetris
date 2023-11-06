@@ -32,7 +32,7 @@ The project is structured by 4 folders and their files:
     - `tetris.py`: Game main environment, implementated by the user [uvipen](https://github.com/uvipen/Tetris-deep-Q-learning-pytorch);
     - `dqn.py`: Deep Q-Learning implementation for training models;
     - `q_learning.py`: Tabular Q-Learning implementation for training models;
-    - #TODO: arquivo principal de heuristicas
+    - `bopt.py`: Heuristic-based implementation, for comparison against the RL models.
 
 ## References
 
